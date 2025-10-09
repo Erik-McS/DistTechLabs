@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include "future_starter.c"
 
 void* foo(void*) {
     unsigned* myInt = malloc(sizeof(unsigned));
