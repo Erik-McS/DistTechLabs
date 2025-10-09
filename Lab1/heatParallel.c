@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200112L
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -12,6 +13,8 @@ static float MAXTIME = 200.0f;
 static float TEMP_COEFFICIENT = 1.0f;
 static unsigned PRINTEVERY = 20;
 static unsigned char CHUNK = 25;
+
+pthread_barrier_t barrier;
 
 
 // struct for parameters to threads
@@ -49,8 +52,15 @@ void* heatCells(void* arg){
 
         tArgs* args = (tArgs*)arg;
 
+    unsigned steps = 0;
+    for (float t = 0; t < MAXTIME; t += TIMESTEP, steps++) {
+        // Flip current and prevous time step buffers
+        float* tmp = args->prev;
+        args->prev = args->cells;
+        args->cells = tmp;
+
         for (unsigned i = args->start; i <= args->end; i++) {
-        // Handle left boundary
+            // Handle left boundary
             if (i == 0) {
                 args->cells[i] = nextTemp(TIMESTEP, BARLEN/NCELLS, args->prev[i], 0, args->prev[i+1]);
                 continue;
@@ -65,6 +75,9 @@ void* heatCells(void* arg){
             // Everything else
             args->cells[i] = nextTemp(TIMESTEP, BARLEN/NCELLS, args->prev[i], args->prev[i-1], args->prev[i+1]);
         }
+        // wait till all chunks are done.
+        pthread_barrier_wait(&barrier);
+    }
 }
 
 int main() {
@@ -94,7 +107,7 @@ int main() {
             args->start = i * CHUNK;
             args->end = (i+1) * CHUNK-1;
             args->cells = cells;
-            args->end;
+            args->prev = prev;
 
             printf("Start %d , End: %d \n",args->start,args->end);
 
