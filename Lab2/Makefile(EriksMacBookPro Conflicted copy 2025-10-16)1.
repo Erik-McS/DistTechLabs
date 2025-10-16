@@ -1,0 +1,58 @@
+CC = /opt/homebrew/Cellar/gcc/15.2.0/bin/gcc-15
+CFLAGS = -fopenmp -O2
+
+.PHONY: all clean
+
+# Default target
+all: openmp.pdf jumble_par primes_par hello_omp
+
+# Build the PDF report
+openmp.pdf: openmp.tex jpar_res.png primes_res.png
+	lualatex -shell-escape openmp.tex
+	lualatex -shell-escape openmp.tex
+
+# Parallel programs
+jumble_par: jumble_par.c
+	gcc -o $@ -fopenmp -O2 $<
+
+primes_par: primes_par.c
+	gcc -o $@ -fopenmp -O2 $<
+
+hello_omp: hello_omp.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+omp_for: omp_for.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+omp_reduce: omp_reduce.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+omp_tasks: omp_tasks.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+prime_seq: prime_seq.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+jumble_seq: jumble_seq.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+
+# Generate performance plot for jumble_par
+jpar_res.png: jumble_par
+	rm -f jpar_res
+	for t in 1 2 4 8 16 32; do \
+		OMP_NUM_THREADS=$$t ./jumble_par | awk -vt=$$t '{print t, $$5}' >> jpar_res; \
+	done
+	cat jpar_res | gnuplot -e "set terminal png; set xlabel 'Threads'; set ylabel 'Runtime (ms)'; plot '-' u 2:xticlabel(1) w l notitle" > jpar_res.png
+
+# Generate performance plot for primes_par
+primes_res.png: primes_par
+	rm -f primes_res
+	for t in 1 2 4 8 16 32; do \
+		OMP_NUM_THREADS=$$t ./primes_par 10000000 | awk -vt=$$t '/primes computed/ {print t, $$5}' >> primes_res; \
+	done
+	cat primes_res | gnuplot -e "set terminal png; set xlabel 'Threads'; set ylabel 'Runtime (ms)'; plot '-' u 2:xticlabel(1) w l notitle" > primes_res.png
+
+# Clean build artifacts
+clean:
+	rm -f jumble_par primes_par hello_omp omp_for openmp.pdf jpar_res primes_res jpar_res.png primes_res.png *.txt prime_seq jumble_seq
